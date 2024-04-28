@@ -16,7 +16,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Install development environment
-        run: pip install pytest coverage pycodestyle pyflakes mypy
+        run: pip install pytest coverage pycodestyle pyflakes mypy black
       
       - name: Run tests and show coverage report
         run: |
@@ -24,7 +24,7 @@ jobs:
           coverage report *.py
 
       - name: Check code style
-        run: pycodestyle .
+        run: pycodestyle --max-line-length=110 --ignore=E203 .
 
       - name: Check python file for typical errors
         run: pyflakes .
@@ -36,6 +36,9 @@ jobs:
       # if you pretend to make a typed version of your program, you should uncomment these lines:  
       # - name: Strict type checks 
       #   run: mypy . --strict
+
+      - name: Code formatting check
+        run: black .
 
   markdown:
     name: Lint markdown

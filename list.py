@@ -4,24 +4,33 @@ from typing import Optional, List, Callable, Any
 class UnrolledNode:
     def __init__(
         self,
-        values: Optional[List[int]] = None,
+        values: Optional[List[Any]] = None,
         next_node=None,
-        capacity: int = 1,
+        capacity: Optional[int] = 1,
     ) -> None:
-        if values is None:
-            values = []
-        self.values: List[int] = values
+        self.values: Optional[List[Any]] = values
         self.next: UnrolledNode = next_node
-        self.capacity: int = capacity
+        if capacity:
+            self.capacity: int = capacity
+        else:
+            self.capacity = 1
 
     def __eq__(self, other) -> bool:
-        if other is None:
+        if self is None and other is None:
+            return True
+        elif self is not None and other is not None:
+            if self.values != other.values:
+                return False
+            if self.capacity != other.capacity:
+                return False
+            return self.next == other.next
+        else:
             return False
-        if self.values != other.values:
-            return False
-        if self.capacity != other.capacity:
-            return False
-        return self.next == other.next
+
+    def __str__(self) -> str:
+        if self.values:
+            return ":".join(str(value) for value in self.values)
+        return "None"
 
 
 class UnrolledLinkedList:
@@ -40,9 +49,12 @@ class UnrolledLinkedList:
         result: List[str] = []
         current_node: Optional[UnrolledNode] = self.head
         while current_node:
-            result.append(":".join(map(str, current_node.values)))
+            if current_node.values:
+                result.append("".join(map(str, current_node.values)))
+            else:
+                result.append("None")
             current_node = current_node.next
-        return ":".join(result)
+        return "".join(result)
 
 
 def url_empty() -> UnrolledLinkedList:
@@ -50,7 +62,7 @@ def url_empty() -> UnrolledLinkedList:
 
 
 def cons(
-    values: List[int], next_node: Optional[UnrolledNode], capacity: int
+    values: Optional[List[Any]], next_node: Optional[UnrolledNode], capacity: Optional[Any] = 1
 ) -> UnrolledNode:
     return UnrolledNode(values, next_node, capacity)
 
@@ -60,100 +72,147 @@ def size(url: Optional[UnrolledLinkedList]) -> int:
     def _size_help(node: Optional[UnrolledNode]) -> int:
         if node is None:
             return 0
-        return len(node.values) + _size_help(node.next)
+        if node.values:
+            return len(node.values) + _size_help(node.next)
+        else:
+            return _size_help(node.next)
 
     if url is None:
         return 0
     return _size_help(url.head)
 
 
-def add(url: UnrolledLinkedList, element: int) -> UnrolledLinkedList:
+def add(url: UnrolledLinkedList, element: Any) -> UnrolledLinkedList:
     def _add_help(node: Optional[UnrolledNode]) -> Optional[UnrolledNode]:
         if node is None:
             return cons([element], None, url.node_capacity)
-        if len(node.values) < node.capacity:
-            return cons(node.values + [element], node.next, node.capacity)
+        if node.values is not None:
+            if len(node.values) < node.capacity:
+                return cons(node.values + [element], node.next, node.capacity)
+            else:
+                return cons(node.values, _add_help(node.next), node.capacity)
         else:
-            return cons(node.values, _add_help(node.next), node.capacity)
+            return cons(None, _add_help(node.next), node.capacity)
 
     return UnrolledLinkedList(url.node_capacity, _add_help(url.head))
 
 
+def add_to_end(url: UnrolledLinkedList, element: Any) -> UnrolledLinkedList:
+    def _add_to_end_help(node: Optional[UnrolledNode]) -> Optional[UnrolledNode]:
+        if node is None:
+            return cons([element], None, url.node_capacity)
+        if node.next is None:
+            if node.values is None:
+                return cons(None, None, node.capacity)
+            else:
+                if len(node.values) < node.capacity:
+                    if element is not None:
+                        return cons(node.values + [element], None, node.capacity)
+                    else:
+                        return cons(node.values, cons(None, None, node.capacity), node.capacity)
+                else:
+                    return cons(node.values, cons(None, None, node.capacity), node.capacity)
+        return cons(node.values, _add_to_end_help(node.next), node.capacity)
+    return UnrolledLinkedList(url.node_capacity, _add_to_end_help(url.head))
+
+
 def find(
-    url: Optional[UnrolledLinkedList], predicate: Callable[[int], bool]
-) -> Optional[int]:
+    url: Optional[UnrolledLinkedList], predicate: Callable[[Any], bool]
+) -> Optional[Any]:
     if url is None:
         return None
     current_node: Optional[UnrolledNode] = url.head
     while current_node:
-        for value in current_node.values:
-            if predicate(value):
-                return value
+        if current_node.values is None:
+            if predicate(None):
+                return None
+        else:
+            for value in current_node.values:
+                if predicate(value):
+                    return value
         current_node = current_node.next
     return None
 
 
-def member(url: Optional[UnrolledLinkedList], value: int) -> bool:
+def member(url: Optional[UnrolledLinkedList], value: Optional[Any]) -> bool:
     if url is None:
         return False
     current_node: Optional[UnrolledNode] = url.head
     while current_node:
-        if value in current_node.values:
-            return True
+        if current_node.values:
+            if value:
+                if value in current_node.values:
+                    return True
+        else:
+            if not value:
+                return True
         current_node = current_node.next
     return False
 
 
 def url_set(
-    url: Optional[UnrolledLinkedList], index: int, value: int
+    url: Optional[UnrolledLinkedList], index: int, value: Any
 ) -> UnrolledLinkedList:
     def _set_help(
-        node: Optional[UnrolledNode], idx: int, val: int
+        node: Optional[UnrolledNode], idx: int, val: Any
     ) -> Optional[UnrolledNode]:
         if node is None:
             raise IndexError("Index out of range")
+        if node.values is None:
+            if idx > 0:
+                return cons(None, _set_help(node.next, idx - 1, val), node.capacity)
+            else:
+                return cons(val, node.next, node.capacity)
         if idx >= len(node.values):
-            return cons(
-                node.values,
-                _set_help(node.next, idx - len(node.values), val),
-                node.capacity,
-            )
-        new_values: List[int] = node.values[:]
-        new_values[idx] = val
-        return cons(new_values, node.next, node.capacity)
-
+            return cons(node.values, _set_help(node.next, idx - len(node.values), val), node.capacity)
+        if node.values is None:
+            return cons([val], node.next, node.capacity)
+        else:
+            if val is None and node.capacity == 1:
+                return cons(None, node.next, node.capacity)
+            else:
+                new_values: List[Any] = node.values[:]
+                new_values[idx] = val
+                return cons(new_values, node.next, node.capacity)
     if url is None:
         return UnrolledLinkedList()
-    return UnrolledLinkedList(url.node_capacity,
-                              _set_help(url.head, index, value))
+    return UnrolledLinkedList(url.node_capacity, _set_help(url.head, index, value))
 
 
-def from_list(lst: List[int], capacity: int = 1) \
+def from_list(lst: List[Any], capacity: Optional[int] = 1) \
         -> Optional[UnrolledLinkedList]:
     if len(lst) == 0:
         return UnrolledLinkedList()
 
-    def _from_list_help(lst2: List[int], capacity2: int) \
+    def _from_list_help(lst2: List[Any], capacity2: Optional[int] = 1) \
             -> Optional[UnrolledNode]:
+        if capacity2 is None:
+            capacity2 = 1
         if len(lst2) == 0 or len(lst2) <= capacity2:
+            if lst2[0] is None and capacity == 1:
+                return cons(None, None, capacity2)
             return cons(lst2, None, capacity2)
-        return cons(
-            lst2[:capacity2],
-            _from_list_help(lst2[capacity2:], capacity2), capacity2
-        )
+        if lst2[0] is None:
+            return cons(None, _from_list_help(lst2[capacity2:], capacity2), capacity2)
 
+        return cons(lst2[:capacity2], _from_list_help(lst2[capacity2:], capacity2), capacity2)
+    if capacity is None:
+        capacity = 1
     return UnrolledLinkedList(capacity, _from_list_help(lst, capacity))
 
 
-def to_list(url: Optional[UnrolledLinkedList]) -> List[int]:
+def to_list(url: Optional[UnrolledLinkedList]) -> List[Any]:
     if url is None:
         return []
-    result: List[int] = []
+    result: List[Any] = []
 
     def _to_list_help(current_node: Optional[UnrolledNode]) -> None:
         if current_node is None:
             return
-        result.extend(current_node.values)
+        if current_node.values:
+            result.extend(current_node.values)
+        else:
+            result.append(None)
         _to_list_help(current_node.next)
 
     _to_list_help(url.head)
@@ -161,7 +220,7 @@ def to_list(url: Optional[UnrolledLinkedList]) -> List[int]:
 
 
 def remove(
-    url: Optional[UnrolledLinkedList], element: int
+    url: Optional[UnrolledLinkedList], element: Any
 ) -> Optional[UnrolledLinkedList]:
     if url is None:
         return UnrolledLinkedList()
@@ -171,12 +230,13 @@ def remove(
     def _remove_help(node: UnrolledNode) -> Optional[UnrolledNode]:
         if node is None:
             return None
-        new_values: List[int] = \
-            [value for value in node.values if value != element]
-        if not new_values:
-            return _remove_help(node.next)
-        return cons(new_values, _remove_help(node.next), node.capacity)
-
+        if node.values:
+            new_values: List[Any] = [value for value in node.values if value != element]
+            if not new_values:
+                return _remove_help(node.next)
+            return cons(new_values, _remove_help(node.next), node.capacity)
+        else:
+            return cons(None, _remove_help(node.next), node.capacity)
     return UnrolledLinkedList(url.node_capacity, _remove_help(url.head))
 
 
@@ -187,9 +247,10 @@ def reverse(url: Optional[UnrolledLinkedList]) -> UnrolledLinkedList:
     ) -> UnrolledNode:
         if node is None:
             return prev
-        new_node: UnrolledNode = (
-            UnrolledNode(node.values[::-1], prev, node.capacity))
-        return _reverse_help(node.next, new_node)
+        if node.values:
+            return _reverse_help(node.next, UnrolledNode(node.values[::-1], prev, node.capacity))
+        else:
+            return _reverse_help(node.next, UnrolledNode(None, prev, node.capacity))
 
     if url is None:
         return UnrolledLinkedList()
@@ -236,19 +297,21 @@ def iterator(lst: Optional[UnrolledLinkedList]):
     def _iterator_help():
         nonlocal current_node
         while current_node:
+            if current_node.values is None:
+                yield None
+                current_node = current_node.next
             if current_node.values:
-                current_value: int = current_node.values[0]
+                current_value: Any = current_node.values[0]
                 yield current_value
                 current_node = cons(current_node.values[1:],
                                     current_node.next, current_node.capacity)
             else:
                 current_node = current_node.next
-
     return _iterator_help()
 
 
 def url_filter(
-    url: Optional[UnrolledLinkedList], predicate: Callable[[int], bool]
+    url: Optional[UnrolledLinkedList], predicate: Callable[[Any], bool]
 ) -> UnrolledLinkedList:
     if url is None:
         return UnrolledLinkedList()
@@ -256,44 +319,52 @@ def url_filter(
     def _filter_help(node: Optional[UnrolledNode]) -> Optional[UnrolledNode]:
         if node is None:
             return None
-        filtered_values: List[int] = [
-            value for value in node.values if predicate(value)
-        ]
-        if not filtered_values:
-            return _filter_help(node.next)
-        return cons(filtered_values, _filter_help(node.next), node.capacity)
-
+        if node.values is not None:
+            filtered_values: List[Any] = [value for value in node.values if predicate(value)]
+            if not filtered_values:
+                return _filter_help(node.next)
+            return cons(filtered_values, _filter_help(node.next), node.capacity)
+        else:
+            if predicate(None):
+                return cons([], _filter_help(node.next), node.capacity)
+            else:
+                return cons(None, _filter_help(node.next), node.capacity)
     return UnrolledLinkedList(url.node_capacity, _filter_help(url.head))
 
 
 def url_map(
-    url: Optional[UnrolledLinkedList], func: Callable[[int], Any]
+    url: Optional[UnrolledLinkedList], func: Callable[[Any], Any]
 ) -> UnrolledLinkedList:
     if url is None:
         return UnrolledLinkedList()
 
     def _map_help(
-        node: Optional[UnrolledNode], func2: Callable[[int], Any]
+        node: Optional[UnrolledNode], func2: Callable[[Any], Any]
     ) -> Optional[UnrolledNode]:
         if node is None:
             return None
-        mapped_values: List[int] = [func2(value) for value in node.values]
-        return cons(mapped_values, _map_help(node.next, func2), node.capacity)
-
+        if node.values is None:
+            return cons(func2(None), _map_help(node.next, func2), node.capacity)
+        else:
+            mapped_values: List[Any] = [func2(value) for value in node.values]
+            return cons(mapped_values, _map_help(node.next, func2), node.capacity)
     return UnrolledLinkedList(url.node_capacity, _map_help(url.head, func))
 
 
 def reduce(
     url: Optional[UnrolledLinkedList],
-    func: Callable[[Any, int], Any],
+    func: Callable[[Any, Any], Any],
     init: Any
 ) -> Any:
     if url is None:
         return None
+    if Any is None:
+        raise TypeError("Expected an integer value")
     result: Any = init
     current_node: Optional[UnrolledNode] = url.head
     while current_node:
-        for value in current_node.values:
-            result = func(result, value)
+        if current_node.values is not None:
+            for value in current_node.values:
+                result = func(result, value)
         current_node = current_node.next
     return result

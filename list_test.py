@@ -9,6 +9,7 @@ from list import (
     from_list,
     size,
     add,
+    add_to_end,
     find,
     remove,
     to_list,
@@ -197,4 +198,61 @@ class Test(unittest.TestCase):
         self.assertEqual(str(lst1), "")
         if values:
             lst2: Optional[UnrolledLinkedList] = from_list(values, capacity)
-            self.assertEqual(str(lst2), ":".join(map(str, values)))
+            self.assertEqual(str(lst2), "".join(map(str, values)))
+
+    @given(st.integers(min_value=1))
+    def test_api_with_None(self, capacity: int) -> None:
+        empty: UnrolledLinkedList = url_empty()
+        l1: UnrolledLinkedList = UnrolledLinkedList(1, cons(None, cons([1], None, 1), 1))
+        l2: UnrolledLinkedList = UnrolledLinkedList(1, cons([1], cons(None, None, 1), 1))
+
+        self.assertEqual(add_to_end(l1, None), from_list([None, 1, None], 1))
+
+        self.assertEqual(str(empty), "")
+        self.assertEqual(str(l1), "None1")
+        self.assertEqual(str(l2), "1None")
+        self.assertNotEqual(empty, l1)
+        self.assertNotEqual(empty, l2)
+        self.assertNotEqual(l1, l2)
+        self.assertEqual(l1, UnrolledLinkedList(capacity, cons(None, cons([1], None, 1), 1)))
+
+        self.assertEqual(size(empty), 0)
+        self.assertEqual(size(l1), 1)
+        self.assertEqual(size(l2), 1)
+
+        self.assertEqual(str(remove(l1, 0)), "None1")
+        self.assertEqual(str(remove(l1, 1)), "None")
+
+        self.assertFalse(member(empty, None))
+        self.assertTrue(member(l1, None))
+        self.assertTrue(member(l1, 1))
+        self.assertFalse(member(l1, 2))
+
+        self.assertEqual(l1, reverse(l2))
+
+        self.assertEqual(to_list(l1), [None, 1])
+        self.assertNotEqual(l1, from_list([1], 1))
+
+        self.assertEqual(m_concat(l1, l2), from_list([None, 1, 1, None], 1))
+
+        buf = iterator(l1)
+        self.assertEqual(list(buf), [None, 1])
+        lst = to_list(l1) + to_list(l2)
+        for e in to_list(l1):
+            lst.remove(e)
+        for e in to_list(l2):
+            lst.remove(e)
+        self.assertEqual(lst, [])
+
+        self.assertEqual(find(l2, lambda x: x is None), None)
+
+        self.assertEqual(to_list(url_set(l1, 1, None)), to_list(url_set(l2, 0, None)))
+
+        self.assertEqual(url_set(l1, 1, None), url_set(l2, 0, None))
+
+        with self.assertRaises(TypeError):
+            reduce(l1, lambda x, y: x + y, None)
+
+        self.assertEqual(to_list(url_filter(l1, lambda x: x is None)), [None])
+
+        self.assertEqual(to_list(url_map(l1, lambda x: None)), [None, None])
